@@ -1,0 +1,69 @@
+title: Nothing Else Matters
+artist: Metallica
+capo: Capo: 0
+bpm: 142
+timeSignature: 6/8
+strumming: Palcowanie (6/8): p - i - m - a - m - i
+demoType: plucking
+tags: rock, metal, ballada, palcowanie
+---
+Intro / Wstęp (Palcowanie):
+TAB:
+e|-------0-----------0-----------0-------|
+B|-----0---0-------0---0-------0---0-----|
+G|---0-------0---0-------0---0-------0---|
+D|---------------------------------------|
+A|---------------------------------------|
+E|-0-----------0-----------0-------------|
+
+[Em]                    [D]           [C]
+So close, no matter how far
+[Em]                    [D]           [C]
+Couldn't be much more from the heart
+[Em]                    [D]           [C]
+Forever trusting who we are
+[G]        [B7]        [Em]
+And nothing else matters
+===
+title: Dziwnie tak
+artist: Carrantuohill
+capo: Capo: 2
+bpm: 110
+timeSignature: 4/4
+strumming: Bicie uniwersalne (4/4): ↓   ↓ ↑   ↑ ↓ ↑
+demoType: strumming
+tags: szanty, folk, irlandzkie
+---
+[Em]
+Znalazła mnie, kiedy miałem już dość
+
+[C]                  [G]
+Zwabił Ją słodkiej wódki smak
+   [Em]
+Wstawał świt czy zapadł zmrok?
+   [C]            [Em]
+Zimna mgła osaczyła nas
+===
+title: Whisky
+artist: Dżem
+capo: Capo: 0
+bpm: 105
+timeSignature: 4/4
+strumming: Bicie blues/rock (4/4): ↓   ↓ ↑ x ↑ ↓ ↑
+demoType: strumming
+tags: rock, klasyka
+---
+[G]                   [C]
+Mówią o mnie w mieście: Co z niego za typ?
+[G]                [D]
+Wciąż tylko pije i gwiżdże na styl.
+[G]               [C]
+Dużo dziewczyn znałem, lecz żadnej nie chciałem
+[G]               [D]
+Żadnej z nich nie mogłem zaufać.
+
+Refren:
+[G]             [C]
+Whisky moja żono, jednak tyś najlepsza z dam
+[G]               [D]
+Inne mnie zdradziły, ciebie jedną mam!
