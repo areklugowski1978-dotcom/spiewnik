@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Śpiewnik Gitarowy PRO</title>
+
+  <!-- Konfiguracja PWA / Fullscreen dla mobilnych -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Śpiewnik">
+  <meta name="theme-color" content="#1e293b">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body {
+      scroll-behavior: auto !important;
+      overflow-x: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .chord-mark {
+      font-weight: bold;
+      color: #ef4444;
+      cursor: pointer;
+      position: relative;
+      display: inline-block;
+      padding: 0 2px;
+      border-radius: 4px;
+    }
+    .chord-mark:active {
+      background-color: rgba(239, 68, 68, 0.3);
+    }
+    pre {
+      font-family: 'Courier New', Courier, monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.8;
+    }
+    .tab-block {
+      font-family: 'Courier New', Courier, monospace;
+      white-space: pre;
+      overflow-x: auto;
+      background: #0f172a;
+      padding: 10px;
+      border-radius: 8px;
+      border-left: 3px solid #f59e0b;
+      margin: 10px 0;
+      color: #38bdf8;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col pt-safe pb-safe">
+
+  <!-- Header -->
+  <header class="bg-slate-800 border-b border-slate-700 p-3 md:p-4 sticky top-0 z-40 shadow-lg">
+    <div class="max-w-4xl mx-auto flex justify-between items-center">
+      <h1 class="text-xl md:text-2xl font-bold text-amber-500 flex items-center gap-2">
+        🎸 Śpiewnik PRO
+      </h1>
+
+      <div class="flex items-center gap-2">
+        <span id="status-tag" class="text-xs text-slate-400 font-mono bg-slate-900 px-2 py-1 rounded border border-slate-700">Ładowanie...</span>
+
+        <!-- Przycisk Pełnego Ekranu -->
+        <button id="fullscreen-btn" class="bg-slate-700 hover:bg-slate-600 text-amber-400 font-bold px-3 py-1 rounded-lg text-sm transition" title="Tryb pełnoekranowy / Wyjście">
+          ⛶
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-4xl w-full mx-auto p-3 md:p-4 flex flex-col gap-3 md:gap-4">
+
+    <!-- Search & Tag Filter -->
+    <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col md:flex-row gap-2">
+      <input id="search-input" type="text" placeholder="🔍 Szukaj utworu, wykonawcy..." class="flex-1 bg-slate-900 text-white border border-slate-700 rounded-lg p-2 text-sm outline-none focus:border-amber-500">
+      <select id="tag-filter" class="bg-slate-900 text-amber-400 border border-slate-700 rounded-lg p-2 text-sm outline-none focus:border-amber-500">
+        <option value="">Wszystkie kategoria/tagi</option>
+      </select>
+    </div>
+
+    <!-- Song List Grid -->
+    <div id="songs-list-container" class="bg-slate-800 p-3 rounded-xl border border-slate-700 hidden">
+      <div id="songs-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1"></div>
+    </div>
+
+    <!-- Song Selector Bar -->
+    <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col gap-2">
+      <div class="flex items-center gap-2">
+        <button id="prev-song" class="bg-slate-700 hover:bg-slate-600 text-amber-400 font-bold px-3 py-2 rounded-lg active:scale-95">◀</button>
+        <select id="song-select" class="flex-1 bg-slate-900 text-white border border-slate-600 rounded-lg p-2 text-sm md:text-base focus:ring-2 focus:ring-amber-500 outline-none"></select>
+        <button id="next-song" class="bg-slate-700 hover:bg-slate-600 text-amber-400 font-bold px-3 py-2 rounded-lg active:scale-95">▶</button>
+      </div>
+    </div>
+
+    <!-- Controls Bar -->
+    <div class="bg-slate-800 p-3 md:p-4 rounded-xl border border-slate-700 flex flex-wrap gap-3 items-center justify-between">
+
+      <!-- Transposition -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs md:text-sm font-medium text-slate-400">Transpozycja:</span>
+        <button id="trans-down" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded font-bold text-base md:text-lg active:scale-95">-</button>
+        <span id="trans-val" class="font-bold text-amber-400 w-6 text-center text-sm md:text-base">0</span>
+        <button id="trans-up" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded font-bold text-base md:text-lg active:scale-95">+</button>
+      </div>
+
+      <!-- Auto Scroll -->
+      <div class="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700">
+        <button id="scroll-toggle" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded font-semibold transition">
+          ▶ Auto-Scroll
+        </button>
+        <span class="text-xs text-slate-400">Prędkość:</span>
+        <input id="scroll-speed" type="range" min="1" max="10" value="3" class="w-16 md:w-20 accent-amber-500">
+      </div>
+
+      <!-- Metronom -->
+      <div class="flex flex-wrap items-center gap-2 bg-slate-900 px-3 py-2 rounded-lg border border-slate-700">
+        <button id="metronome-toggle" class="bg-sky-600 text-white text-xs px-3 py-1.5 rounded font-semibold">⏱ Metronom</button>
+        <select id="time-signature" class="bg-slate-800 text-sky-300 text-xs font-bold border border-slate-700 rounded p-1 outline-none">
+          <option value="4/4">4/4</option><option value="3/4">3/4</option><option value="6/8">6/8</option><option value="2/4">2/4</option>
+        </select>
+        <div class="flex items-center gap-1">
+          <button id="bpm-minus" class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-bold text-xs border border-slate-700">-</button>
+          <input id="bpm-input" type="number" min="30" max="250" value="120" class="w-12 bg-slate-800 text-amber-400 font-bold text-xs text-center border border-slate-700 rounded p-0.5 outline-none">
+          <button id="bpm-plus" class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-bold text-xs border border-slate-700">+</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Song Display -->
+    <div id="song-display" class="bg-slate-800 p-4 md:p-6 rounded-xl border border-slate-700 flex-1 min-h-[400px]">
+      <div id="song-header" class="border-b border-slate-700 pb-3 mb-3">
+        <div class="flex justify-between items-start flex-wrap gap-2">
+          <div>
+            <h2 id="song-title" class="text-xl md:text-3xl font-bold text-amber-400"></h2>
+            <p id="song-artist" class="text-slate-400 text-sm md:text-base font-medium"></p>
+            <p id="song-capo" class="text-xs text-slate-500 mt-1"></p>
+          </div>
+          <div id="song-tags" class="flex flex-wrap gap-1"></div>
+        </div>
+
+        <div id="strumming-container" class="mt-3 p-3 bg-slate-900/90 rounded-lg border border-slate-700/60 flex flex-col gap-2 hidden">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400 font-bold uppercase tracking-wider">🥁 Bicie / Rytm:</span>
+            <span id="time-sig-display" class="bg-sky-950 text-sky-400 font-bold px-2 py-0.5 rounded border border-sky-800/60 text-[11px]">Takt: 4/4</span>
+          </div>
+          <div id="strumming-pattern" class="text-amber-400 font-mono text-sm tracking-widest font-bold"></div>
+
+          <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+            <button id="demo-midi-btn" class="bg-purple-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow">
+              <span>🎵</span> <span>Zagraj Demo (MIDI Audio)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="song-body" class="text-sm md:text-lg text-slate-200 leading-relaxed"></div>
+    </div>
+
+  </main>
+
+  <!-- Chord Diagram Modal Canvas -->
+  <div id="chord-modal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 max-w-xs w-full flex flex-col items-center text-center shadow-2xl">
+      <h3 id="chord-modal-title" class="text-2xl font-bold text-amber-400 mb-2">C-dur</h3>
+      <canvas id="chord-canvas" width="180" height="200" class="my-2"></canvas>
+      <button id="chord-modal-close" class="mt-4 bg-slate-700 text-white px-5 py-2 rounded-lg font-semibold text-sm">
+        Zamknij
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const CHORD_LIBRARY = {
+      'C': { frets: [-1, 3, 2, 0, 1, 0] },
+      'D': { frets: [-1, -1, 0, 2, 3, 2] },
+      'Dm': { frets: [-1, -1, 0, 2, 3, 1] },
+      'E': { frets: [0, 2, 2, 1, 0, 0] },
+      'Em': { frets: [0, 2, 2, 0, 0, 0] },
+      'F': { frets: [1, 3, 3, 2, 1, 1] },
+      'G': { frets: [3, 2, 0, 0, 0, 3] },
+      'A': { frets: [-1, 0, 2, 2, 2, 0] },
+      'Am': { frets: [-1, 0, 2, 2, 1, 0] },
+      'B7': { frets: [-1, 2, 1, 2, 0, 2] },
+      'H7': { frets: [-1, 2, 1, 2, 0, 2] }
+    };
+
+    const GUITAR_FREQS = [82.41, 110.00, 146.83, 196.00, 246.94, 329.63];
+
+    let songs = [];
+    let filteredSongs = [];
+    let currentSongId = '';
+    let currentTranspose = 0;
+
+    let isScrolling = false;
+    let scrollInterval = null;
+
+    let audioCtx = null;
+    let isMetronomeRunning = false;
+    let metronomeInterval = null;
+    let currentBeat = 0;
+    let isDemoPlaying = false;
+    let demoTimeouts = [];
+
+    // Pełny ekran
+    const fsBtn = document.getElementById('fullscreen-btn');
+    fsBtn.addEventListener('click', () => {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+        else if (document.documentElement.webkitRequestFullscreen) document.documentElement.webkitRequestFullscreen();
+        fsBtn.textContent = '✕';
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        fsBtn.textContent = '⛶';
+      }
+    });
+
+    async function loadAutoDatabase() {
+      try {
+        const res = await fetch('baza.txt');
+        if (!res.ok) throw new Error("Brak baza.txt");
+        const txt = await res.text();
+        songs = parseDatabaseTxt(txt);
+        document.getElementById('status-tag').textContent = `${songs.length} piosenek`;
+      } catch (e) {
+        document.getElementById('status-tag').textContent = "Błąd baza.txt";
+      }
+
+      currentSongId = songs[0]?.id || '';
+      updateTagFilterOptions();
+      applyFilters();
+    }
+
+    function parseDatabaseTxt(text) {
+      const blocks = text.split(/\n===\n/);
+      return blocks.map((block, idx) => {
+        const parts = block.split(/\n---\n/);
+        const metaLines = parts[0].split('\n');
+        const body = parts[1] || parts[0];
+
+        const song = { id: String(idx + 1), body: body.trim() };
+        metaLines.forEach(line => {
+          const [key, ...val] = line.split(':');
+          if (key && val.length) {
+            const v = val.join(':').trim();
+            if (key.trim() === 'tags') song.tags = v.split(',').map(t => t.trim());
+            else if (key.trim() === 'bpm') song.bpm = parseInt(v, 10);
+            else song[key.trim()] = v;
+          }
+        });
+        return song;
+      }).filter(s => s.title);
+    }
+
+    // Auto-Scroll
+    function toggleScroll() {
+      if (isScrolling) stopScroll();
+      else startScroll();
+    }
+
+    function startScroll() {
+      isScrolling = true;
+      const btn = document.getElementById('scroll-toggle');
+      btn.textContent = '⏸ Pauza';
+      btn.className = 'bg-amber-600 text-white text-xs px-3 py-1.5 rounded font-semibold';
+
+      scrollInterval = setInterval(() => {
+        const speed = parseInt(document.getElementById('scroll-speed').value, 10);
+        window.scrollBy(0, speed * 0.8);
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 5) {
+          stopScroll();
+        }
+      }, 40);
+    }
+
+    function stopScroll() {
+      isScrolling = false;
+      if (scrollInterval) clearInterval(scrollInterval);
+      const btn = document.getElementById('scroll-toggle');
+      btn.textContent = '▶ Auto-Scroll';
+      btn.className = 'bg-emerald-600 text-white text-xs px-3 py-1.5 rounded font-semibold';
+    }
+
+    // Audio / MIDI
+    function initAudioContext() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playGuitarNote(freq, duration = 0.8) {
+      initAudioContext();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+      gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function startDemoMidi() {
+      initAudioContext();
+      const song = songs.find(s => s.id === currentSongId);
+      if (!song) return;
+
+      isDemoPlaying = true;
+      const btn = document.getElementById('demo-midi-btn');
+      btn.textContent = '⏹ Zatrzymaj Demo';
+
+      const bpm = parseInt(document.getElementById('bpm-input').value, 10) || 120;
+      const beatInterval = (60 / bpm) * 1000;
+
+      if (song.demoType === 'plucking' || (song.tags && song.tags.includes('palcowanie'))) {
+        const patternNotes = [GUITAR_FREQS[0], GUITAR_FREQS[3], GUITAR_FREQS[4], GUITAR_FREQS[5], GUITAR_FREQS[4], GUITAR_FREQS[3]];
+        let delay = 0;
+        for (let loop = 0; loop < 2; loop++) {
+          patternNotes.forEach(freq => {
+            let t = setTimeout(() => { if (isDemoPlaying) playGuitarNote(freq, 0.6); }, delay);
+            demoTimeouts.push(t);
+            delay += beatInterval * 0.5;
+          });
+        }
+        let endT = setTimeout(() => stopDemoMidi(), delay + 400);
+        demoTimeouts.push(endT);
+      } else {
+        const emChord = [GUITAR_FREQS[0], GUITAR_FREQS[1]*1.12, GUITAR_FREQS[2]*1.12, GUITAR_FREQS[3], GUITAR_FREQS[4], GUITAR_FREQS[5]];
+        let delay = 0;
+        const strum = () => emChord.forEach((f, i) => setTimeout(() => playGuitarNote(f, 1.0), i * 20));
+        const timings = [0, 1, 1.5, 2.5, 3, 3.5];
+
+        timings.forEach(tStep => {
+          let t = setTimeout(() => { if (isDemoPlaying) strum(); }, tStep * beatInterval);
+          demoTimeouts.push(t);
+        });
+
+        let endT = setTimeout(() => stopDemoMidi(), 4.5 * beatInterval);
+        demoTimeouts.push(endT);
+      }
+    }
+
+    function stopDemoMidi() {
+      isDemoPlaying = false;
+      demoTimeouts.forEach(clearTimeout);
+      demoTimeouts = [];
+      document.getElementById('demo-midi-btn').textContent = '🎵 Zagraj Demo (MIDI Audio)';
+    }
+
+    document.getElementById('demo-midi-btn').addEventListener('click', () => {
+      if (isDemoPlaying) stopDemoMidi(); else startDemoMidi();
+    });
+
+    // Metronom
+    function playClick() {
+      initAudioContext();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const timeSig = document.getElementById('time-signature').value;
+      const beatsPerBar = parseInt(timeSig.split('/')[0], 10) || 4;
+
+      osc.frequency.value = (currentBeat === 0) ? 1200 : 750;
+      currentBeat = (currentBeat + 1) % beatsPerBar;
+
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.04);
+    }
+
+    function toggleMetronome() {
+      isMetronomeRunning = !isMetronomeRunning;
+      const btn = document.getElementById('metronome-toggle');
+      if (isMetronomeRunning) {
+        btn.classList.replace('bg-sky-600', 'bg-rose-600');
+        startMetronome();
+      } else {
+        btn.classList.replace('bg-rose-600', 'bg-sky-600');
+        stopMetronome();
+      }
+    }
+
+    function startMetronome() {
+      stopMetronome();
+      currentBeat = 0;
+      const bpm = parseInt(document.getElementById('bpm-input').value, 10) || 120;
+      const intervalMs = (60 / bpm) * 1000;
+      playClick();
+      metronomeInterval = setInterval(playClick, intervalMs);
+    }
+
+    function stopMetronome() {
+      if (metronomeInterval) clearInterval(metronomeInterval);
+    }
+
+    document.getElementById('metronome-toggle').addEventListener('click', toggleMetronome);
+    document.getElementById('bpm-plus').addEventListener('click', () => {
+      const inp = document.getElementById('bpm-input');
+      inp.value = parseInt(inp.value, 10) + 1;
+      if (isMetronomeRunning) startMetronome();
+    });
+    document.getElementById('bpm-minus').addEventListener('click', () => {
+      const inp = document.getElementById('bpm-input');
+      inp.value = Math.max(30, parseInt(inp.value, 10) - 1);
+      if (isMetronomeRunning) startMetronome();
+    });
+
+    // Rysowanie Gryfu w Canvas
+    function drawChordOnCanvas(chordName) {
+      const canvas = document.getElementById('chord-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const chordData = CHORD_LIBRARY[chordName] || { frets: [0,0,0,0,0,0] };
+      const frets = chordData.frets;
+
+      const startX = 30, startY = 30, stringSpacing = 24, fretSpacing = 32;
+      const stringsCount = 6, fretsCount = 4;
+
+      // Progi
+      for (let i = 0; i <= fretsCount; i++) {
+        const y = startY + i * fretSpacing;
+        ctx.beginPath();
+        ctx.moveTo(startX, y);
+        ctx.lineTo(startX + (stringsCount - 1) * stringSpacing, y);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = (i === 0) ? 4 : 1.5;
+        ctx.stroke();
+      }
+
+      // Struny
+      for (let i = 0; i < stringsCount; i++) {
+        const x = startX + i * stringSpacing;
+        ctx.beginPath();
+        ctx.moveTo(x, startY);
+        ctx.lineTo(x, startY + fretsCount * fretSpacing);
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Kropki / O / X
+      frets.forEach((fret, stringIdx) => {
+        const x = startX + stringIdx * stringSpacing;
+        if (fret === -1) {
+          ctx.font = 'bold 14px sans-serif';
+          ctx.fillStyle = '#ef4444';
+          ctx.textAlign = 'center';
+          ctx.fillText('X', x, startY - 8);
+        } else if (fret === 0) {
+          ctx.beginPath();
+          ctx.arc(x, startY - 10, 5, 0, Math.PI * 2);
+          ctx.strokeStyle = '#10b981';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        } else {
+          const y = startY + (fret - 0.5) * fretSpacing;
+          ctx.beginPath();
+          ctx.arc(x, y, 9, 0, Math.PI * 2);
+          ctx.fillStyle = '#f59e0b';
+          ctx.fill();
+        }
+      });
+    }
+
+    function showChordModal(chordName) {
+      document.getElementById('chord-modal-title').textContent = `Chwyt: ${chordName}`;
+      drawChordOnCanvas(chordName);
+      document.getElementById('chord-modal').classList.remove('hidden');
+    }
+
+    document.getElementById('chord-modal-close').addEventListener('click', () => {
+      document.getElementById('chord-modal').classList.add('hidden');
+    });
+
+    // Transpozycja
+    const CHROMATIC_SCALE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const FLAT_MAP = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
+
+    function transposeNote(note, semitones) {
+      let normalized = FLAT_MAP[note] || note;
+      let idx = CHROMATIC_SCALE.indexOf(normalized);
+      if (idx === -1) return note;
+      let newIdx = (idx + semitones) % 12;
+      if (newIdx < 0) newIdx += 12;
+      return CHROMATIC_SCALE[newIdx];
+    }
+
+    function transposeChord(chord, semitones) {
+      return chord.replace(/([A-G][b#]?)/g, (m) => transposeNote(m, semitones));
+    }
+
+    document.getElementById('trans-up').addEventListener('click', () => { currentTranspose++; renderSong(); });
+    document.getElementById('trans-down').addEventListener('click', () => { currentTranspose--; renderSong(); });
+
+    // UI
+    function updateTagFilterOptions() {
+      const allTags = new Set();
+      songs.forEach(s => (s.tags || []).forEach(t => allTags.add(t.trim().toLowerCase())));
+      document.getElementById('tag-filter').innerHTML = '<option value="">Wszystkie kategoria/tagi</option>' +
+        Array.from(allTags).map(t => `<option value="${t}"># ${t.toUpperCase()}</option>`).join('');
+    }
+
+    function applyFilters() {
+      const query = document.getElementById('search-input').value.toLowerCase().trim();
+      const selectedTag = document.getElementById('tag-filter').value.toLowerCase().trim();
+
+      filteredSongs = songs.filter(s => {
+        const matchesQuery = !query || s.title?.toLowerCase().includes(query) || s.artist?.toLowerCase().includes(query);
+        const matchesTag = !selectedTag || (s.tags && s.tags.some(t => t.toLowerCase() === selectedTag));
+        return matchesQuery && matchesTag;
+      });
+
+      if (filteredSongs.length > 0 && !filteredSongs.some(s => s.id === currentSongId)) {
+        currentSongId = filteredSongs[0].id;
+      }
+
+      populateSelect();
+      renderSong();
+    }
+
+    function populateSelect() {
+      const songSelect = document.getElementById('song-select');
+      songSelect.innerHTML = filteredSongs.map(s => `<option value="${s.id}">${s.artist || ''} - ${s.title || ''}</option>`).join('');
+      songSelect.value = currentSongId;
+    }
+
+    function renderSong() {
+      const song = songs.find(s => s.id === currentSongId);
+      if (!song) return;
+
+      document.getElementById('song-title').textContent = song.title || 'Bez tytułu';
+      document.getElementById('song-artist').textContent = song.artist || '';
+      document.getElementById('song-capo').textContent = song.capo || '';
+      document.getElementById('trans-val').textContent = currentTranspose;
+
+      if (song.bpm) document.getElementById('bpm-input').value = song.bpm;
+      if (song.strumming) {
+        document.getElementById('strumming-pattern').textContent = song.strumming;
+        document.getElementById('strumming-container').classList.remove('hidden');
+      }
+
+      let text = song.body;
+      let formattedHtml = '';
+      const lines = text.split('\n');
+      let inTabBlock = false;
+      let tabBuffer = [];
+
+      lines.forEach(line => {
+        const isTabLine = /^[eBGDAE]\|/.test(line.trim());
+        if (isTabLine) {
+          inTabBlock = true;
+          tabBuffer.push(line);
+        } else {
+          if (inTabBlock) {
+            formattedHtml += `<div class="tab-block">${tabBuffer.join('\n')}</div>`;
+            tabBuffer = [];
+            inTabBlock = false;
+          }
+          let processedLine = line.replace(/\[([A-G][^\]]*)\]/g, (match, p1) => {
+            const transposed = transposeChord(p1, currentTranspose);
+            return `<span class="chord-mark" onclick="showChordModal('${transposed}')">${transposed}</span>`;
+          });
+          formattedHtml += processedLine + '\n';
+        }
+      });
+
+      if (inTabBlock) formattedHtml += `<div class="tab-block">${tabBuffer.join('\n')}</div>`;
+      document.getElementById('song-body').innerHTML = `<pre class="font-mono">${formattedHtml}</pre>`;
+    }
+
+    document.getElementById('scroll-toggle').addEventListener('click', toggleScroll);
+    document.getElementById('song-select').addEventListener('change', (e) => {
+      currentSongId = e.target.value;
+      currentTranspose = 0;
+      stopDemoMidi();
+      stopScroll();
+      renderSong();
+    });
+    document.getElementById('prev-song').addEventListener('click', () => {
+      let idx = filteredSongs.findIndex(s => s.id === currentSongId);
+      currentSongId = idx > 0 ? filteredSongs[idx - 1].id : filteredSongs[filteredSongs.length - 1].id;
+      currentTranspose = 0;
+      stopDemoMidi(); stopScroll(); renderSong(); populateSelect();
+    });
+    document.getElementById('next-song').addEventListener('click', () => {
+      let idx = filteredSongs.findIndex(s => s.id === currentSongId);
+      currentSongId = idx < filteredSongs.length - 1 ? filteredSongs[idx + 1].id : filteredSongs[0].id;
+      currentTranspose = 0;
+      stopDemoMidi(); stopScroll(); renderSong(); populateSelect();
+    });
+
+    document.getElementById('search-input').addEventListener('input', applyFilters);
+    document.getElementById('tag-filter').addEventListener('change', applyFilters);
+
+    loadAutoDatabase();
+  </script>
+</body>
+</html>
