@@ -20,6 +20,7 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
 
+  <!-- Header -->
   <header class="bg-slate-800 border-b border-slate-700 p-3 sticky top-0 z-40 shadow-lg flex justify-between items-center">
     <h1 class="text-xl font-bold text-amber-500">🎸 Śpiewnik PRO</h1>
     <div class="flex items-center gap-2">
@@ -29,6 +30,7 @@
   </header>
 
   <main class="flex-1 max-w-4xl w-full mx-auto p-3 flex flex-col gap-3">
+    <!-- Szukajka i Tagi -->
     <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col md:flex-row gap-2">
       <input id="search-input" type="text" placeholder="🔍 Szukaj utworu..." class="flex-1 bg-slate-900 text-white border border-slate-700 rounded-lg p-2 text-sm outline-none">
       <select id="tag-filter" class="bg-slate-900 text-amber-400 border border-slate-700 rounded-lg p-2 text-sm outline-none">
@@ -36,12 +38,14 @@
       </select>
     </div>
 
+    <!-- Wybór Piosenki -->
     <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex items-center gap-2">
       <button id="prev-song" class="bg-slate-700 text-amber-400 font-bold px-3 py-2 rounded-lg">◀</button>
       <select id="song-select" class="flex-1 bg-slate-900 text-white border border-slate-600 rounded-lg p-2 text-sm md:text-base outline-none"></select>
       <button id="next-song" class="bg-slate-700 text-amber-400 font-bold px-3 py-2 rounded-lg">▶</button>
     </div>
 
+    <!-- Pasek Kontroli -->
     <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-wrap gap-3 items-center justify-between">
       <div class="flex items-center gap-2">
         <span class="text-xs text-slate-400">Transpozycja:</span>
@@ -65,6 +69,7 @@
       </div>
     </div>
 
+    <!-- Widok Utworu -->
     <div id="song-display" class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-1 min-h-[400px]">
       <div id="song-header" class="border-b border-slate-700 pb-3 mb-3">
         <h2 id="song-title" class="text-2xl font-bold text-amber-400"></h2>
@@ -81,21 +86,50 @@
     let filteredSongs = [];
     let currentSongId = '';
     let currentTranspose = 0;
+    let isScrolling = false;
+    let scrollInterval = null;
 
+    // Transpozycja
+    const CHROMATIC_SCALE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const FLAT_MAP = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
+
+    function transposeNote(note, semitones) {
+      let normalized = FLAT_MAP[note] || note;
+      let idx = CHROMATIC_SCALE.indexOf(normalized);
+      if (idx === -1) return note;
+      let newIdx = (idx + semitones) % 12;
+      if (newIdx < 0) newIdx += 12;
+      return CHROMATIC_SCALE[newIdx];
+    }
+
+    function transposeChord(chord, semitones) {
+      return chord.replace(/([A-G][b#]?)/g, (m) => transposeNote(m, semitones));
+    }
+
+    // Pobieranie bazy z folderu songs/
     async function loadFolderDatabase() {
       try {
         const res = await fetch('songs/index.json');
+        if (!res.ok) throw new Error("Brak pliku songs/index.json");
         const fileList = await res.json();
         
-        songs = await Promise.all(fileList.map(async (fileName, idx) => {
-          const fileRes = await fetch(`songs/${fileName}`);
-          const text = await fileRes.text();
-          return parseSingleTxt(String(idx + 1), text);
-        }));
+        const loadedSongs = [];
+        for (let i = 0; i < fileList.length; i++) {
+          try {
+            const fileName = fileList[i];
+            const fileRes = await fetch(`songs/${fileName}`);
+            if (fileRes.ok) {
+              const text = await fileRes.text();
+              loadedSongs.push(parseSingleTxt(String(i + 1), text));
+            }
+          } catch(e) { console.error(e); }
+        }
 
+        songs = loadedSongs;
         document.getElementById('status-tag').textContent = `${songs.length} utworów`;
       } catch (e) {
         document.getElementById('status-tag').textContent = "Błąd folderu songs/";
+        console.error(e);
       }
 
       currentSongId = songs[0]?.id || '';
@@ -146,7 +180,11 @@
 
     function renderSong() {
       const song = songs.find(s => s.id === currentSongId);
-      if (!song) return;
+      if (!song) {
+        document.getElementById('song-title').textContent = "Brak utworu";
+        document.getElementById('song-body').textContent = "Sprawdź poprawność ścieżek w songs/index.json";
+        return;
+      }
 
       document.getElementById('song-title').textContent = song.title || 'Bez tytułu';
       document.getElementById('song-artist').textContent = song.artist || '';
@@ -156,7 +194,10 @@
       if (song.strumming) document.getElementById('strumming-container').textContent = `Bicie: ${song.strumming}`;
 
       let text = song.body;
-      let formattedHtml = text.replace(/\[([A-G][^\]]*)\]/g, '<span class="chord-mark">[$1]</span>');
+      let formattedHtml = text.replace(/\[([A-G][^\]]*)\]/g, (match, p1) => {
+        const transposed = transposeChord(p1, currentTranspose);
+        return `<span class="chord-mark">[${transposed}]</span>`;
+      });
       document.getElementById('song-body').innerHTML = `<pre class="font-mono">${formattedHtml}</pre>`;
     }
 
@@ -167,9 +208,42 @@
         Array.from(allTags).map(t => `<option value="${t}"># ${t.toUpperCase()}</option>`).join('');
     }
 
+    // Auto Scroll
+    function toggleScroll() {
+      if (isScrolling) {
+        isScrolling = false;
+        clearInterval(scrollInterval);
+        document.getElementById('scroll-toggle').textContent = '▶ Auto-Scroll';
+      } else {
+        isScrolling = true;
+        document.getElementById('scroll-toggle').textContent = '⏸ Pauza';
+        scrollInterval = setInterval(() => {
+          const speed = parseInt(document.getElementById('scroll-speed').value, 10);
+          window.scrollBy(0, speed * 0.8);
+        }, 40);
+      }
+    }
+
+    // Event Listeners (Zawsze aktywne)
+    document.getElementById('scroll-toggle').addEventListener('click', toggleScroll);
     document.getElementById('search-input').addEventListener('input', applyFilters);
     document.getElementById('tag-filter').addEventListener('change', applyFilters);
-    document.getElementById('song-select').addEventListener('change', (e) => { currentSongId = e.target.value; renderSong(); });
+    document.getElementById('song-select').addEventListener('change', (e) => { currentSongId = e.target.value; currentTranspose = 0; renderSong(); });
+
+    document.getElementById('prev-song').addEventListener('click', () => {
+      let idx = filteredSongs.findIndex(s => s.id === currentSongId);
+      currentSongId = idx > 0 ? filteredSongs[idx - 1].id : filteredSongs[filteredSongs.length - 1].id;
+      currentTranspose = 0; renderSong(); populateSelect();
+    });
+
+    document.getElementById('next-song').addEventListener('click', () => {
+      let idx = filteredSongs.findIndex(s => s.id === currentSongId);
+      currentSongId = idx < filteredSongs.length - 1 ? filteredSongs[idx + 1].id : filteredSongs[0].id;
+      currentTranspose = 0; renderSong(); populateSelect();
+    });
+
+    document.getElementById('trans-up').addEventListener('click', () => { currentTranspose++; renderSong(); });
+    document.getElementById('trans-down').addEventListener('click', () => { currentTranspose--; renderSong(); });
 
     loadFolderDatabase();
   </script>
