@@ -1,0 +1,17 @@
+title: Dziwnie tak
+artist: Carrantuohill
+capo: Capo: 2
+bpm: 110
+timeSignature: 4/4
+strumming: Bicie uniwersalne (4/4): ↓   ↓ ↑   ↑ ↓ ↑
+tags: szanty, folk, irlandzkie
+---
+[Em]
+Znalazła mnie, kiedy miałem już dość
+
+[C]                  [G]
+Zwabił Ją słodkiej wódki smak
+   [Em]
+Wstawał świt czy zapadł zmrok?
+   [C]            [Em]
+Zimna mgła osaczyła nas
