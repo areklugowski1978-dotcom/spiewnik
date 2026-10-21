@@ -61,7 +61,7 @@
       </h1>
 
       <div class="flex items-center gap-2">
-        <span id="status-tag" class="text-xs text-slate-400 font-mono bg-slate-900 px-2 py-1 rounded border border-slate-700">Ładowanie...</span>
+        <span id="status-tag" class="text-xs text-slate-400 font-mono bg-slate-900 px-2 py-1 rounded border border-slate-700">Wczytywanie...</span>
 
         <!-- Przycisk Pełnego Ekranu -->
         <button id="fullscreen-btn" class="bg-slate-700 hover:bg-slate-600 text-amber-400 font-bold px-3 py-1 rounded-lg text-sm transition" title="Tryb pełnoekranowy / Wyjście">
@@ -80,11 +80,6 @@
       <select id="tag-filter" class="bg-slate-900 text-amber-400 border border-slate-700 rounded-lg p-2 text-sm outline-none focus:border-amber-500">
         <option value="">Wszystkie kategoria/tagi</option>
       </select>
-    </div>
-
-    <!-- Song List Grid -->
-    <div id="songs-list-container" class="bg-slate-800 p-3 rounded-xl border border-slate-700 hidden">
-      <div id="songs-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1"></div>
     </div>
 
     <!-- Song Selector Bar -->
@@ -143,6 +138,7 @@
           <div id="song-tags" class="flex flex-wrap gap-1"></div>
         </div>
 
+        <!-- Bicie i Demo Audio -->
         <div id="strumming-container" class="mt-3 p-3 bg-slate-900/90 rounded-lg border border-slate-700/60 flex flex-col gap-2 hidden">
           <div class="flex justify-between items-center text-xs">
             <span class="text-slate-400 font-bold uppercase tracking-wider">🥁 Bicie / Rytm:</span>
@@ -151,7 +147,7 @@
           <div id="strumming-pattern" class="text-amber-400 font-mono text-sm tracking-widest font-bold"></div>
 
           <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
-            <button id="demo-midi-btn" class="bg-purple-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow">
+            <button id="demo-midi-btn" class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow">
               <span>🎵</span> <span>Zagraj Demo (MIDI Audio)</span>
             </button>
           </div>
@@ -220,15 +216,30 @@
       }
     });
 
-    async function loadAutoDatabase() {
+    // Pobieranie bazy z folderu songs/
+    async function loadFolderDatabase() {
       try {
-        const res = await fetch('baza.txt');
-        if (!res.ok) throw new Error("Brak baza.txt");
-        const txt = await res.text();
-        songs = parseDatabaseTxt(txt);
-        document.getElementById('status-tag').textContent = `${songs.length} piosenek`;
+        const res = await fetch('songs/index.json');
+        if (!res.ok) throw new Error("Brak pliku songs/index.json");
+        const fileList = await res.json();
+        
+        const loadedSongs = [];
+        for (let i = 0; i < fileList.length; i++) {
+          try {
+            const fileName = fileList[i];
+            const fileRes = await fetch(`songs/${fileName}`);
+            if (fileRes.ok) {
+              const text = await fileRes.text();
+              loadedSongs.push(parseSingleTxt(String(i + 1), text));
+            }
+          } catch(e) { console.error(e); }
+        }
+
+        songs = loadedSongs;
+        document.getElementById('status-tag').textContent = `${songs.length} utworów`;
       } catch (e) {
-        document.getElementById('status-tag').textContent = "Błąd baza.txt";
+        document.getElementById('status-tag').textContent = "Błąd folderu songs/";
+        console.error(e);
       }
 
       currentSongId = songs[0]?.id || '';
@@ -236,25 +247,22 @@
       applyFilters();
     }
 
-    function parseDatabaseTxt(text) {
-      const blocks = text.split(/\n===\n/);
-      return blocks.map((block, idx) => {
-        const parts = block.split(/\n---\n/);
-        const metaLines = parts[0].split('\n');
-        const body = parts[1] || parts[0];
+    function parseSingleTxt(id, text) {
+      const parts = text.split(/\n---\n/);
+      const metaLines = parts[0].split('\n');
+      const body = parts[1] || parts[0];
 
-        const song = { id: String(idx + 1), body: body.trim() };
-        metaLines.forEach(line => {
-          const [key, ...val] = line.split(':');
-          if (key && val.length) {
-            const v = val.join(':').trim();
-            if (key.trim() === 'tags') song.tags = v.split(',').map(t => t.trim());
-            else if (key.trim() === 'bpm') song.bpm = parseInt(v, 10);
-            else song[key.trim()] = v;
-          }
-        });
-        return song;
-      }).filter(s => s.title);
+      const song = { id, body: body.trim() };
+      metaLines.forEach(line => {
+        const [key, ...val] = line.split(':');
+        if (key && val.length) {
+          const v = val.join(':').trim();
+          if (key.trim() === 'tags') song.tags = v.split(',').map(t => t.trim());
+          else if (key.trim() === 'bpm') song.bpm = parseInt(v, 10);
+          else song[key.trim()] = v;
+        }
+      });
+      return song;
     }
 
     // Auto-Scroll
@@ -267,7 +275,7 @@
       isScrolling = true;
       const btn = document.getElementById('scroll-toggle');
       btn.textContent = '⏸ Pauza';
-      btn.className = 'bg-amber-600 text-white text-xs px-3 py-1.5 rounded font-semibold';
+      btn.className = 'bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-semibold';
 
       scrollInterval = setInterval(() => {
         const speed = parseInt(document.getElementById('scroll-speed').value, 10);
@@ -283,7 +291,7 @@
       if (scrollInterval) clearInterval(scrollInterval);
       const btn = document.getElementById('scroll-toggle');
       btn.textContent = '▶ Auto-Scroll';
-      btn.className = 'bg-emerald-600 text-white text-xs px-3 py-1.5 rounded font-semibold';
+      btn.className = 'bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded font-semibold';
     }
 
     // Audio / MIDI
@@ -354,7 +362,7 @@
       isDemoPlaying = false;
       demoTimeouts.forEach(clearTimeout);
       demoTimeouts = [];
-      document.getElementById('demo-midi-btn').textContent = '🎵 Zagraj Demo (MIDI Audio)';
+      document.getElementById('demo-midi-btn').innerHTML = '<span>🎵</span> <span>Zagraj Demo (MIDI Audio)</span>';
     }
 
     document.getElementById('demo-midi-btn').addEventListener('click', () => {
@@ -424,7 +432,9 @@
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const chordData = CHORD_LIBRARY[chordName] || { frets: [0,0,0,0,0,0] };
+      // Zdejmij ewentualne modyfikatory minorowe itp. do wyszukiwania w bibliotece
+      let baseChord = chordName.replace(/\[\vert{}\]/g, '').trim();
+      const chordData = CHORD_LIBRARY[baseChord] || { frets: [0,0,0,0,0,0] };
       const frets = chordData.frets;
 
       const startX = 30, startY = 30, stringSpacing = 24, fretSpacing = 32;
@@ -506,7 +516,7 @@
     document.getElementById('trans-up').addEventListener('click', () => { currentTranspose++; renderSong(); });
     document.getElementById('trans-down').addEventListener('click', () => { currentTranspose--; renderSong(); });
 
-    // UI
+    // UI i Filtry
     function updateTagFilterOptions() {
       const allTags = new Set();
       songs.forEach(s => (s.tags || []).forEach(t => allTags.add(t.trim().toLowerCase())));
@@ -540,7 +550,11 @@
 
     function renderSong() {
       const song = songs.find(s => s.id === currentSongId);
-      if (!song) return;
+      if (!song) {
+        document.getElementById('song-title').textContent = "Brak utworu";
+        document.getElementById('song-body').textContent = "Sprawdź poprawność ścieżek w songs/index.json";
+        return;
+      }
 
       document.getElementById('song-title').textContent = song.title || 'Bez tytułu';
       document.getElementById('song-artist').textContent = song.artist || '';
@@ -548,9 +562,26 @@
       document.getElementById('trans-val').textContent = currentTranspose;
 
       if (song.bpm) document.getElementById('bpm-input').value = song.bpm;
+      
+      // Obsługa bicia i przykładu audio
       if (song.strumming) {
         document.getElementById('strumming-pattern').textContent = song.strumming;
+        document.getElementById('time-sig-display').textContent = `Takt: ${song.timeSignature || '4/4'}`;
         document.getElementById('strumming-container').classList.remove('hidden');
+      } else {
+        document.getElementById('strumming-container').classList.add('hidden');
+      }
+
+      // Generowanie Tagów wizualnych
+      const tagsContainer = document.getElementById('song-tags');
+      tagsContainer.innerHTML = '';
+      if (song.tags) {
+        song.tags.forEach(t => {
+          const badge = document.createElement('span');
+          badge.className = 'bg-slate-700 text-amber-400 text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full border border-slate-600 shadow-sm';
+          badge.textContent = `# ${t.toUpperCase()}`;
+          tagsContainer.appendChild(badge);
+        });
       }
 
       let text = song.body;
@@ -606,7 +637,7 @@
     document.getElementById('search-input').addEventListener('input', applyFilters);
     document.getElementById('tag-filter').addEventListener('change', applyFilters);
 
-    loadAutoDatabase();
+    loadFolderDatabase();
   </script>
 </body>
 </html>
