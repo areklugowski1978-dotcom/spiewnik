@@ -4,19 +4,11 @@ capo: Capo: 0
 bpm: 105
 timeSignature: 4/4
 strumming: Bicie blues/rock (4/4): ↓   ↓ ↑ x ↑ ↓ ↑
+demoType: strumming
+demoChords: G, C, G, D, G, C, D, G
 tags: rock, klasyka
 ---
 [G]                   [C]
 Mówią o mnie w mieście: Co z niego za typ?
 [G]                [D]
 Wciąż tylko pije i gwiżdże na styl.
-[G]               [C]
-Dużo dziewczyn znałem, lecz żadnej nie chciałem
-[G]               [D]
-Żadnej z nich nie mogłem zaufać.
-
-Refren:
-[G]             [C]
-Whisky moja żono, jednak tyś najlepsza z dam
-[G]               [D]
-Inne mnie zdradziły, ciebie jedną mam!
