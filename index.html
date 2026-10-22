@@ -79,7 +79,7 @@
         <div id="strumming-container" class="mt-3 p-3 bg-slate-900 rounded-lg border border-slate-700 flex flex-col gap-2 hidden">
           <div class="text-xs text-amber-400 font-mono font-bold" id="strumming-text"></div>
           <button id="demo-midi-btn" class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition self-start shadow">
-            🎵 Zagraj Demo (Akapit / Akordy)
+            🎵 Zagraj Demo (Sekwencja MIDI)
           </button>
         </div>
       </div>
@@ -88,7 +88,19 @@
   </main>
 
   <script>
-    const GUITAR_FREQS = [82.41, 110.00, 146.83, 196.00, 246.94, 329.63]; // E2, A2, D3, G3, B3, E4
+    // Tablica podstawowych akordów i ich częstotliwości [E2, A2, D3, G3, B3, E4]
+    const CHORD_NOTES = {
+      'C':  [130.81, 164.81, 196.00, 261.63, 329.63],
+      'D':  [146.83, 220.00, 293.66, 369.99],
+      'Dm': [146.83, 220.00, 293.66, 349.23],
+      'E':  [82.41, 123.47, 164.81, 207.65, 246.94, 329.63],
+      'Em': [82.41, 123.47, 164.81, 196.00, 246.94, 329.63],
+      'F':  [87.31, 130.81, 174.61, 220.00, 261.63, 349.23],
+      'G':  [98.00, 123.47, 146.83, 196.00, 246.94, 392.00],
+      'A':  [110.00, 164.81, 220.00, 277.18, 329.63],
+      'Am': [110.00, 164.81, 220.00, 261.63, 329.63],
+      'B7': [116.54, 146.83, 233.08, 293.66, 369.99]
+    };
 
     let songs = [];
     let filteredSongs = [];
@@ -98,25 +110,10 @@
     let scrollInterval = null;
 
     let audioCtx = null;
-    let isMetronomeRunning = false;
-    let metronomeInterval = null;
-    let currentBeat = 0;
     let isDemoPlaying = false;
     let demoTimeouts = [];
 
-    // Pełny ekran
-    document.getElementById('fullscreen-btn').addEventListener('click', () => {
-      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
-        else if (document.documentElement.webkitRequestFullscreen) document.documentElement.webkitRequestFullscreen();
-        else alert("Na iPhone użyj opcji 'Udostępnij' -> 'Do ekranu początkowego', aby uzyskać tryb pełnoekranowy!");
-      } else {
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-      }
-    });
-
-    // Ulepszony syntezator brzmienia gitary w Web Audio API
+    // Web Audio API Synth
     function initAudioContext() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -134,17 +131,18 @@
       osc1.type = 'sawtooth';
       osc2.type = 'sine';
 
-      osc1.frequency.setValueAtTime(freq, now);
-      osc2.frequency.setValueAtTime(freq, now);
+      // Przemieszczenie częstotliwości z uwzględnieniem transpozycji
+      const transposedFreq = freq * Math.pow(2, currentTranspose / 12);
 
-      // Ciepłe filtrowanie gitary akustycznej
+      osc1.frequency.setValueAtTime(transposedFreq, now);
+      osc2.frequency.setValueAtTime(transposedFreq, now);
+
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1200, now);
-      filter.frequency.exponentialRampToValueAtTime(300, now + duration);
+      filter.frequency.setValueAtTime(1100, now);
+      filter.frequency.exponentialRampToValueAtTime(250, now + duration);
 
-      // Obwiednia głośności (ADSR)
       gain.gain.setValueAtTime(0.001, now);
-      gain.gain.linearRampToValueAtTime(0.4, now + 0.01);
+      gain.gain.linearRampToValueAtTime(0.35, now + 0.015);
       gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
       osc1.connect(filter);
@@ -170,39 +168,47 @@
       const bpm = parseInt(document.getElementById('bpm-input').value, 10) || 120;
       const beatInterval = (60 / bpm) * 1000;
 
-      if (song.demoType === 'plucking' || (song.tags && song.tags.includes('palcowanie'))) {
-        const patternNotes = [GUITAR_FREQS[0], GUITAR_FREQS[3], GUITAR_FREQS[4], GUITAR_FREQS[5], GUITAR_FREQS[4], GUITAR_FREQS[3]];
-        let delay = 0;
-        for (let loop = 0; loop < 2; loop++) {
-          patternNotes.forEach(freq => {
-            let t = setTimeout(() => { if (isDemoPlaying) playAcousticNote(freq, 0.8); }, delay);
+      // Odczytaj akordy zapisane w demoChords lub użyj Domyślnych
+      const chordList = song.demoChords ? song.demoChords.split(',').map(c => c.trim()) : ['Em', 'C', 'G', 'D'];
+
+      let delay = 0;
+
+      chordList.forEach((chordName) => {
+        const baseChord = chordName.replace(/\[|\]/g, '').trim();
+        const freqs = CHORD_NOTES[baseChord] || CHORD_NOTES['Em'];
+
+        if (song.demoType === 'plucking' || (song.tags && song.tags.includes('palcowanie'))) {
+          // Tryb Palcowania (Arpeggio) dla każdego akordu
+          freqs.forEach((freq, idx) => {
+            let t = setTimeout(() => {
+              if (isDemoPlaying) playAcousticNote(freq, 0.9);
+            }, delay + idx * (beatInterval * 0.4));
             demoTimeouts.push(t);
-            delay += beatInterval * 0.5;
           });
+          delay += freqs.length * (beatInterval * 0.4);
+        } else {
+          // Tryb Rytmicznego Bicia (2 bicia na akord)
+          for (let beat = 0; beat < 2; beat++) {
+            let t = setTimeout(() => {
+              if (isDemoPlaying) {
+                freqs.forEach((f, i) => setTimeout(() => playAcousticNote(f, 1.2), i * 22));
+              }
+            }, delay + beat * beatInterval);
+            demoTimeouts.push(t);
+          }
+          delay += 2 * beatInterval;
         }
-        let endT = setTimeout(() => stopDemoMidi(), delay + 400);
-        demoTimeouts.push(endT);
-      } else {
-        const emChord = [GUITAR_FREQS[0], GUITAR_FREQS[1]*1.12, GUITAR_FREQS[2]*1.12, GUITAR_FREQS[3], GUITAR_FREQS[4], GUITAR_FREQS[5]];
-        let delay = 0;
-        const strum = () => emChord.forEach((f, i) => setTimeout(() => playAcousticNote(f, 1.4), i * 30));
-        const timings = [0, 1, 1.5, 2.5, 3, 3.5];
+      });
 
-        timings.forEach(tStep => {
-          let t = setTimeout(() => { if (isDemoPlaying) strum(); }, tStep * beatInterval);
-          demoTimeouts.push(t);
-        });
-
-        let endT = setTimeout(() => stopDemoMidi(), 4.5 * beatInterval);
-        demoTimeouts.push(endT);
-      }
+      let endT = setTimeout(() => stopDemoMidi(), delay + 500);
+      demoTimeouts.push(endT);
     }
 
     function stopDemoMidi() {
       isDemoPlaying = false;
       demoTimeouts.forEach(clearTimeout);
       demoTimeouts = [];
-      document.getElementById('demo-midi-btn').textContent = '🎵 Zagraj Demo (Akapit / Akordy)';
+      document.getElementById('demo-midi-btn').textContent = '🎵 Zagraj Demo (Sekwencja MIDI)';
     }
 
     document.getElementById('demo-midi-btn').addEventListener('click', () => {
@@ -232,7 +238,6 @@
         document.getElementById('status-tag').textContent = `${songs.length} utworów`;
       } catch (e) {
         document.getElementById('status-tag').textContent = "Błąd folderu songs/";
-        console.error(e);
       }
 
       currentSongId = songs[0]?.id || '';
