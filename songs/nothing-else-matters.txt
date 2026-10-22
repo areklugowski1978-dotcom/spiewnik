@@ -4,6 +4,8 @@ capo: Capo: 0
 bpm: 142
 timeSignature: 6/8
 strumming: Palcowanie (6/8): p - i - m - a - m - i
+demoType: plucking
+demoChords: Em, D, C, G, B7, Em
 tags: rock, metal, ballada, palcowanie
 ---
 Intro / Wstęp (Palcowanie):
