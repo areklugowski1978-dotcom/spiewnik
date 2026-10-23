@@ -1,0 +1,27 @@
+title: Nothing Else Matters
+artist: Metallica
+capo: Capo: 0
+bpm: 142
+timeSignature: 6/8
+strumming: Palcowanie (6/8): p - i - m - a - m - i
+demoType: plucking
+demoChords: Em, D, C, G, B7, Em
+tags: rock, metal, ballada, palcowanie
+---
+Intro / Wstęp (Palcowanie):
+TAB:
+e|-------0-----------0-----------0-------|
+B|-----0---0-------0---0-------0---0-----|
+G|---0-------0---0-------0---0-------0---|
+D|---------------------------------------|
+A|---------------------------------------|
+E|-0-----------0-----------0-------------|
+
+[Em]                    [D]           [C]
+So close, no matter how far
+[Em]                    [D]           [C]
+Couldn't be much more from the heart
+[Em]                    [D]           [C]
+Forever trusting who we are
+[G]        [B7]        [Em]
+And nothing else matters
